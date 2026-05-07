@@ -82,6 +82,6 @@
 </div>
 
 <script src="https://cdn.staticfile.org/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-<script src="assets/js/main.js"></script>
+<script src="assets/main.js"></script>
 </body>
 </html>
