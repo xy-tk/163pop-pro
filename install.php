@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // 3. 注入你在页面填写的后台管理员账号和密码
         $stmt = $pdo->prepare("INSERT INTO admin_users (username, password) VALUES (?, ?)");
-        $stmt->execute([$admin_user, $admin_pass]);
+        $stmt->execute([$admin_user, password_hash($admin_pass, PASSWORD_DEFAULT)]);
         
         // 4. 生成防重装锁文件
         file_put_contents(__DIR__ . '/install.lock', date('Y-m-d H:i:s'));
