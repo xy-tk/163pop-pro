@@ -3,25 +3,17 @@
 session_start();
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 
-// ==========================================
-// 1. 安全拦截与基础依赖
-// ==========================================
 if (!file_exists(__DIR__ . '/install.lock')) {
     header('Location: install.php');
     exit;
 }
 
-require_once __DIR__ . '/db.php'; // 全局载入数据库连接
-
-// 自动加载类
+require_once __DIR__ . '/db.php';
 spl_autoload_register(function ($className) {
     $file = __DIR__ . "/classes/{$className}.php";
     if (file_exists($file)) require_once $file;
 });
 
-// ==========================================
-// 2. 路由映射表 (安全白名单)
-// ==========================================
 $allowedActions = [
     'login'             => 'views/login.php',
     'dashboard'         => 'views/dashboard.php',
@@ -35,9 +27,6 @@ $allowedActions = [
 
 $action = $_GET['action'] ?? 'dashboard';
 
-// ==========================================
-// 3. 登录与注销逻辑
-// ==========================================
 if ($action === 'logout') {
     Auth::doLogout();
     header('Location: admin.php?action=login');
@@ -54,219 +43,148 @@ if ($action === 'login') {
         }
     }
     require 'views/login.php'; 
-    exit; // 登录页面独立渲染，直接退出
+    exit;
 }
 
-// 全局拦截：未登录踢回登录页
 if (!Auth::checkLogin()) {
     header('Location: admin.php?action=login');
     exit;
 }
 
 // ==========================================
-// 4. 数据处理逻辑 (CRUD - 增删改动作处理)
+// 数据处理逻辑 (回归原版：直接页面提交)
 // ==========================================
-// --- 【0】管理员账号修改逻辑 ---
+
+// --- 管理员修改 ---
 if ($action === 'change_password_save') {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['new_username']) && !empty($_POST['new_password'])) {
-        try {
-            // 因为系统设计为单管理员，直接清空旧表并插入新账号
-            $pdo->exec("TRUNCATE TABLE admin_users");
-            $stmt = $pdo->prepare("INSERT INTO admin_users (username, password) VALUES (?, ?)");
-            $stmt->execute([trim($_POST['new_username']), password_hash(trim($_POST['new_password']), PASSWORD_DEFAULT)]);
-            
-            $_SESSION['success_message'] = "管理员账号密码修改成功！请牢记新密码。";
-        } catch (PDOException $e) {
-            $_SESSION['error_message'] = "修改失败，数据库写入错误！";
-        }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['new_username'])) {
+        $pdo->exec("TRUNCATE TABLE admin_users");
+        $stmt = $pdo->prepare("INSERT INTO admin_users (username, password) VALUES (?, ?)");
+        $stmt->execute([trim($_POST['new_username']), trim($_POST['new_password'])]);
+        $_SESSION['success_message'] = "账号密码修改成功！";
     }
-    header('Location: admin.php?action=change_password'); 
-    exit;
+    header('Location: admin.php?action=change_password'); exit;
 }
-// --- 【1】号码库处理逻辑 ---
-if ($action === 'phonenumber_save') {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['phonenumber'])) {
-        try {
-            $stmt = $pdo->prepare("INSERT INTO phonenumbers (phonenumber, host, port, user, pass, match_sender) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                trim($_POST['phonenumber']), trim($_POST['host']), 
-                trim($_POST['port'] ?? '995'), trim($_POST['user']), 
-                trim($_POST['pass']), trim($_POST['match_sender'] ?? '')
-            ]);
-            $_SESSION['success_message'] = "号码添加成功！";
-        } catch (PDOException $e) {
-            $_SESSION['error_message'] = "添加失败，该号码可能已存在！";
+
+// --- 号码库批量保存 ---
+if ($action === 'phonenumber_bulk_save') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_data'])) {
+        $lines = explode("\n", $_POST['bulk_data']);
+        $count = 0;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            // 支持 主机---端口---账号---密码---发件人---电话 或 空格分隔
+            $parts = preg_split('/\s*---\s*|\s+/', $line, -1, PREG_SPLIT_NO_EMPTY);
+            if (count($parts) >= 6) {
+                $stmt = $pdo->prepare("INSERT IGNORE INTO phonenumbers (host, port, user, pass, match_sender, phonenumber) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$parts[0], $parts[1], $parts[2], $parts[3], $parts[4], $parts[5]]);
+                $count++;
+            }
         }
-    }
-    header('Location: admin.php?action=phonenumber'); exit;
-}
-if ($action === 'phonenumber_delete') {
-    if (!empty($_GET['id'])) {
-        $stmt = $pdo->prepare("DELETE FROM phonenumbers WHERE id = ?");
-        $stmt->execute([$_GET['id']]);
-        $_SESSION['success_message'] = "号码删除成功！";
+        $_SESSION['success_message'] = "成功导入 {$count} 条号码。";
     }
     header('Location: admin.php?action=phonenumber'); exit;
 }
 
-// --- 【2】分类规则处理逻辑 ---
+// --- 分类保存 ---
 if ($action === 'classification_save') {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['category_name'])) {
-        try {
-            $stmt = $pdo->prepare("INSERT INTO classifications (category_name, match_keywords) VALUES (?, ?)");
-            $stmt->execute([trim($_POST['category_name']), trim($_POST['match_keywords'])]);
-            $_SESSION['success_message'] = "分类创建成功！";
-        } catch (PDOException $e) {
-            $_SESSION['error_message'] = "添加失败！";
-        }
-    }
-    header('Location: admin.php?action=classification'); exit;
-}
-if ($action === 'classification_delete') {
-    if (!empty($_GET['id'])) {
-        $stmt = $pdo->prepare("DELETE FROM classifications WHERE id = ?");
-        $stmt->execute([$_GET['id']]);
-        $_SESSION['success_message'] = "分类删除成功！";
+        $stmt = $pdo->prepare("INSERT INTO classifications (category_name, match_keywords) VALUES (?, ?)");
+        $stmt->execute([trim($_POST['category_name']), trim($_POST['match_keywords'])]);
+        $_SESSION['success_message'] = "分类保存成功。";
     }
     header('Location: admin.php?action=classification'); exit;
 }
 
-// --- 【3】接码业务任务处理逻辑 ---
-if ($action === 'verification_code_save') {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $code = trim($_POST['verification_code']);
-        if (empty($code)) {
-            // 如果为空，自动生成 10 位大写字母+数字的查询码
-            $code = substr(str_shuffle("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 10);
-        }
-        
-        $phone = $_POST['phonenumber'];
+// --- 接码任务批量保存 ---
+if ($action === 'verification_code_bulk_save') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_data'])) {
+        $lines = explode("\n", $_POST['bulk_data']);
         $category = $_POST['category_name'];
         $days = (float)$_POST['days_to_expire'];
-        $user_content = $_POST['user_content'] ?? '';
+        $user_content = $_POST['user_content'];
+        $count = 0;
 
-        // 分别查询被选中的号码配置和分类配置
-        $stmtPhone = $pdo->prepare("SELECT * FROM phonenumbers WHERE phonenumber = ?");
-        $stmtPhone->execute([$phone]);
-        $phoneData = $stmtPhone->fetch();
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            $parts = preg_split('/\s*---\s*|\s+/', $line, -1, PREG_SPLIT_NO_EMPTY);
+            $phoneNum = $parts[0];
+            $customCode = $parts[1] ?? substr(str_shuffle("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 10);
 
-        $stmtCat = $pdo->prepare("SELECT * FROM classifications WHERE category_name = ?");
-        $stmtCat->execute([$category]);
-        $catData = $stmtCat->fetch();
+            $stmtP = $pdo->prepare("SELECT * FROM phonenumbers WHERE phonenumber = ?");
+            $stmtP->execute([$phoneNum]);
+            $p = $stmtP->fetch();
+            
+            $stmtC = $pdo->prepare("SELECT * FROM classifications WHERE category_name = ?");
+            $stmtC->execute([$category]);
+            $c = $stmtC->fetch();
 
-        if ($phoneData && $catData) {
-            try {
-                // 处理格式化
-                $match_keywords = json_encode(array_map('trim', explode(',', $catData['match_keywords'])), JSON_UNESCAPED_UNICODE);
-                $match_sender = json_encode([$phoneData['match_sender']], JSON_UNESCAPED_UNICODE);
-                $combination = json_encode([$phone . '---' . $user_content . '/' . $code], JSON_UNESCAPED_UNICODE);
-                $releaseDate = date('Y-m-d H:i:s');
-                $expTime = $days . '天';
-
-                $stmt = $pdo->prepare("INSERT INTO verification_codes (code, category, host, port, user, pass, match_keywords, match_sender, releasedate, expirationtime, combination, is_expired) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
-                $stmt->execute([$code, $category, $phoneData['host'], $phoneData['port'], $phoneData['user'], $phoneData['pass'], $match_keywords, $match_sender, $releaseDate, $expTime, $combination]);
+            if ($p && $c) {
+                $mk = json_encode(array_map('trim', explode(',', $c['match_keywords'])), JSON_UNESCAPED_UNICODE);
+                $ms = json_encode([$p['match_sender']], JSON_UNESCAPED_UNICODE);
+                $cb = json_encode([$phoneNum . '---' . $user_content . '/' . $customCode], JSON_UNESCAPED_UNICODE);
                 
-                // 同时把生成的码放入防重码库
-                $pdo->prepare("INSERT IGNORE INTO used_codes (code) VALUES (?)")->execute([$code]);
-                $_SESSION['success_message'] = '任务分配成功！查询码为：' . htmlspecialchars($code);
-            } catch (PDOException $e) {
-                $_SESSION['error_message'] = '分配失败，查询码可能已存在！';
+                $stmt = $pdo->prepare("INSERT IGNORE INTO verification_codes (code, category, host, port, user, pass, match_keywords, match_sender, releasedate, expirationtime, combination, is_expired) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+                $stmt->execute([$customCode, $category, $p['host'], $p['port'], $p['user'], $p['pass'], $mk, $ms, date('Y-m-d H:i:s'), $days.'天', $cb]);
+                
+                $pdo->prepare("INSERT IGNORE INTO used_codes (code) VALUES (?)")->execute([$customCode]);
+                $count++;
             }
-        } else {
-            $_SESSION['error_message'] = '系统错误：未找到所选的手机号或分类配置！';
         }
-    }
-    header('Location: admin.php?action=verification_code'); exit;
-}
-if ($action === 'verification_code_delete') {
-    if (!empty($_GET['code'])) {
-        $stmt = $pdo->prepare("DELETE FROM verification_codes WHERE code = ?");
-        $stmt->execute([$_GET['code']]);
-        $_SESSION['success_message'] = "任务删除成功！";
+        $_SESSION['success_message'] = "成功分配 {$count} 条接码任务。";
     }
     header('Location: admin.php?action=verification_code'); exit;
 }
 
-// --- 【4】防重码库处理逻辑 ---
-if ($action === 'used_codes_save') {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['verification_code'])) {
-        try {
-            $stmt = $pdo->prepare("INSERT INTO used_codes (code) VALUES (?)");
-            $stmt->execute([trim($_POST['verification_code'])]);
-            $_SESSION['success_message'] = "占用码入库成功！";
-        } catch (PDOException $e) {
-            $_SESSION['error_message'] = "该码已在库中！";
-        }
+// --- 各种删除动作 ---
+$delete_actions = [
+    'phonenumber_delete' => ['table' => 'phonenumbers', 'key' => 'id', 'ref' => 'phonenumber'],
+    'classification_delete' => ['table' => 'classifications', 'key' => 'id', 'ref' => 'classification'],
+    'verification_code_delete' => ['table' => 'verification_codes', 'key' => 'code', 'ref' => 'verification_code'],
+    'used_codes_delete' => ['table' => 'used_codes', 'key' => 'code', 'ref' => 'code_manager'],
+    'expired_phones_delete' => ['table' => 'verification_codes', 'key' => 'code', 'ref' => 'expired_phones']
+];
+
+if (isset($delete_actions[$action])) {
+    $config = $delete_actions[$action];
+    $val = $_GET['id'] ?? $_GET['code'];
+    if ($val) {
+        $stmt = $pdo->prepare("DELETE FROM {$config['table']} WHERE {$config['key']} = ?");
+        $stmt->execute([$val]);
+        $_SESSION['success_message'] = "删除成功。";
     }
-    header('Location: admin.php?action=code_manager'); exit;
-}
-if ($action === 'used_codes_delete') {
-    if (!empty($_GET['code'])) {
-        $stmt = $pdo->prepare("DELETE FROM used_codes WHERE code = ?");
-        $stmt->execute([$_GET['code']]);
-        $_SESSION['success_message'] = "码已释放！";
-    }
-    header('Location: admin.php?action=code_manager'); exit;
+    header("Location: admin.php?action={$config['ref']}"); exit;
 }
 
-// --- 【5】过期记录处理逻辑 ---
-if ($action === 'expired_phones_delete') {
-    if (!empty($_GET['code'])) {
-        $stmt = $pdo->prepare("DELETE FROM verification_codes WHERE code = ?");
-        $stmt->execute([$_GET['code']]);
-        $_SESSION['success_message'] = "过期记录彻底删除成功！";
-    }
-    header('Location: admin.php?action=expired_phones'); exit;
-}
-if ($action === 'expired_phones_clear_all') {
-    $pdo->query("DELETE FROM verification_codes WHERE is_expired = 1");
-    $_SESSION['success_message'] = "所有过期记录已清空！";
-    header('Location: admin.php?action=expired_phones'); exit;
-}
-
-// ==========================================
-// 5. 视图数据准备与页面渲染加载区
-// ==========================================
-
-// 每次加载前，检查并自动将过期时间到达的任务标记为过期
+// 自动过期处理
 $pdo->query("UPDATE verification_codes SET is_expired = 1 WHERE is_expired = 0 AND DATE_ADD(releasedate, INTERVAL CAST(REPLACE(expirationtime, '天', '') AS DECIMAL(10,2)) DAY) < NOW()");
 
+// 数据加载
 if ($action === 'dashboard') {
     $dash_phones = $pdo->query("SELECT COUNT(*) FROM phonenumbers")->fetchColumn();
-    $dash_active_codes = $pdo->query("SELECT COUNT(*) FROM verification_codes WHERE is_expired = 0")->fetchColumn();
-    $dash_expired_codes = $pdo->query("SELECT COUNT(*) FROM verification_codes WHERE is_expired = 1")->fetchColumn();
-} 
-elseif ($action === 'phonenumber') {
+    $dash_active = $pdo->query("SELECT COUNT(*) FROM verification_codes WHERE is_expired = 0")->fetchColumn();
+    $dash_expired = $pdo->query("SELECT COUNT(*) FROM verification_codes WHERE is_expired = 1")->fetchColumn();
+} elseif ($action === 'phonenumber') {
     $phoneNumbers = $pdo->query("SELECT * FROM phonenumbers ORDER BY id DESC")->fetchAll();
-} 
-elseif ($action === 'classification') {
+} elseif ($action === 'classification') {
     $classifications = $pdo->query("SELECT * FROM classifications ORDER BY id DESC")->fetchAll();
-} 
-elseif ($action === 'verification_code') {
+} elseif ($action === 'verification_code') {
     $verificationData = $pdo->query("SELECT * FROM verification_codes WHERE is_expired = 0 ORDER BY releasedate DESC")->fetchAll();
-    $phoneNumbers = $pdo->query("SELECT phonenumber FROM phonenumbers ORDER BY id DESC")->fetchAll();
-    $classifications = $pdo->query("SELECT category_name FROM classifications ORDER BY id DESC")->fetchAll();
-}
-elseif ($action === 'code_manager') {
+    $phoneNumbers = $pdo->query("SELECT phonenumber FROM phonenumbers")->fetchAll();
+    $classifications = $pdo->query("SELECT category_name FROM classifications")->fetchAll();
+} elseif ($action === 'code_manager') {
     $usedCodesData = $pdo->query("SELECT * FROM used_codes ORDER BY code ASC")->fetchAll();
-}
-elseif ($action === 'expired_phones') {
+} elseif ($action === 'expired_phones') {
     $expiredData = $pdo->query("SELECT * FROM verification_codes WHERE is_expired = 1 ORDER BY releasedate DESC")->fetchAll();
 }
 
-// ==========================================
-// 6. 最终输出拼装
-// ==========================================
-if (array_key_exists($action, $allowedActions) && $allowedActions[$action]) {
-    // 开启输出缓冲区，提取子页面的 HTML 内容
+if (array_key_exists($action, $allowedActions)) {
     ob_start();
     require $allowedActions[$action];
     $page_content = ob_get_clean();
-    
-    // 将子页面内容注入到全局骨架中
     require 'views/layout.php';
 } else {
-    header('Location: admin.php?action=dashboard');
-    exit;
+    header('Location: admin.php?action=dashboard'); exit;
 }
-?>
