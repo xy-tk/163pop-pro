@@ -73,7 +73,7 @@ if ($action === 'change_password_save') {
             // 因为系统设计为单管理员，直接清空旧表并插入新账号
             $pdo->exec("TRUNCATE TABLE admin_users");
             $stmt = $pdo->prepare("INSERT INTO admin_users (username, password) VALUES (?, ?)");
-            $stmt->execute([trim($_POST['new_username']), trim($_POST['new_password'])]);
+            $stmt->execute([trim($_POST['new_username']), password_hash(trim($_POST['new_password']), PASSWORD_DEFAULT)]);
             
             $_SESSION['success_message'] = "管理员账号密码修改成功！请牢记新密码。";
         } catch (PDOException $e) {
