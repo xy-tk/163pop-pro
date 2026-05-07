@@ -1,7 +1,7 @@
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
-    <h1 class="h2 text-secondary"><i class="fas fa-history"></i> 过期业务记录</h1>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 text-secondary"><i class="fas fa-history"></i> 已过期记录</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="admin.php?action=expired_phones_clear_all" class="btn btn-sm btn-outline-danger shadow-sm" onclick="return confirm('确定要清空所有过期记录吗？此操作不可逆！')">
+        <a href="admin.php?action=expired_phones_clear_all" class="btn btn-sm btn-danger shadow-sm" onclick="return confirm('确定要清空所有过期记录吗？此操作不可逆！')">
             <i class="fas fa-trash-alt"></i> 清空所有过期记录
         </a>
     </div>
@@ -24,7 +24,7 @@
                 <tbody>
                     <?php if (!empty($expiredData)): ?>
                         <?php foreach ($expiredData as $row): 
-                            $comboArr = json_decode($row['combination'], true);
+                            $comboArr = json_decode($row['combination'], true) ?? [];
                             $phoneAssigned = explode('---', $comboArr[0] ?? '')[0] ?? '未知号码';
                         ?>
                             <tr>
@@ -37,8 +37,8 @@
                                 </td>
                                 <td><span class="badge bg-danger">已过期</span></td>
                                 <td class="text-center">
-                                    <a href="admin.php?action=expired_phones_delete&code=<?= urlencode($row['code']) ?>" class="btn btn-sm btn-outline-danger btn-delete" title="彻底删除">
-                                        <i class="fas fa-times"></i> 删除
+                                    <a href="admin.php?action=expired_phones_delete&code=<?= urlencode($row['code']) ?>" class="btn btn-sm btn-outline-danger btn-delete" onclick="return confirm('彻底删除？');">
+                                        <i class="fas fa-times"></i>
                                     </a>
                                 </td>
                             </tr>
