@@ -54,6 +54,24 @@
     document.getElementById('selectAll')?.addEventListener('change', function() {
         document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = this.checked);
     });
+    // 复制到剪贴板功能
+    document.querySelectorAll('.btn-copy').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const textToCopy = this.getAttribute('data-clipboard-text');
+            if (textToCopy) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    this.classList.remove('text-muted');
+                    this.classList.add('text-success'); // 变绿提示成功
+                    setTimeout(() => {
+                        this.classList.remove('text-success');
+                        this.classList.add('text-muted'); // 2秒后还原颜色
+                    }, 2000);
+                }).catch(err => {
+                    alert('复制失败，请手动复制');
+                });
+            }
+        });
+    });
 </script>
 </body>
 </html>
