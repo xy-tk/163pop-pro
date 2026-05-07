@@ -33,6 +33,11 @@
                             <i class="fas fa-key"></i> <span class="d-none d-sm-inline">接码业务管理</span>
                         </a>
                     </li>
+                    <li class="nav-item w-100 mt-4">
+                        <a href="admin.php?action=change_password" class="nav-link text-white <?= ($_GET['action'] ?? '') === 'change_password' ? 'active' : '' ?>">
+                            <i class="fas fa-user-shield"></i> <span class="d-none d-sm-inline">账号设置</span>
+                        </a>
+                    </li>
                     </ul>
                 <hr>
                 <div class="pb-4 w-100">
@@ -54,6 +59,7 @@
                         <li class="nav-item"><a class="nav-link" href="admin.php?action=dashboard">控制台</a></li>
                         <li class="nav-item"><a class="nav-link" href="admin.php?action=phonenumber">号码库</a></li>
                         <li class="nav-item"><a class="nav-link" href="admin.php?action=verification_code">业务管理</a></li>
+                        <li class="nav-item"><a class="nav-link" href="admin.php?action=change_password">账号设置</a></li>
                         <li class="nav-item"><a class="nav-link text-danger" href="admin.php?action=logout">退出</a></li>
                     </ul>
                 </div>
