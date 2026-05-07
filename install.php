@@ -20,22 +20,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dsn = "mysql:host={$db_host};dbname={$db_name};charset=utf8mb4";
         $pdo = new PDO($dsn, $db_user, $db_pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
-        // 生成配置文件
+        // 1. 生成数据库配置文件
         $db_config = "<?php\n\$pdo = new PDO('mysql:host={$db_host};dbname={$db_name};charset=utf8mb4', '{$db_user}', '{$db_pass}', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);\n?>";
         file_put_contents(__DIR__ . '/db.php', $db_config);
 
-        // 创建核心表结构
+        // 2. 一次性创建所有 5 个核心表结构
         $pdo->exec("
+            -- 表1：号码库表
             CREATE TABLE IF NOT EXISTS `phonenumbers` (`id` int(11) NOT NULL AUTO_INCREMENT, `phonenumber` varchar(50) NOT NULL, `host` varchar(100) NOT NULL, `port` varchar(10) DEFAULT '995', `user` varchar(100) NOT NULL, `pass` varchar(100) NOT NULL, `match_sender` varchar(255) DEFAULT NULL, PRIMARY KEY (`id`), UNIQUE KEY `phonenumber` (`phonenumber`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            
+            -- 表2：接码业务任务表
             CREATE TABLE IF NOT EXISTS `verification_codes` (`code` varchar(50) NOT NULL, `category` varchar(50) NOT NULL, `host` varchar(100) NOT NULL, `port` varchar(10) DEFAULT '995', `user` varchar(100) NOT NULL, `pass` varchar(100) NOT NULL, `match_keywords` json DEFAULT NULL, `match_sender` json DEFAULT NULL, `releasedate` datetime NOT NULL, `expirationtime` varchar(20) NOT NULL, `combination` json DEFAULT NULL, `is_expired` tinyint(1) DEFAULT '0', PRIMARY KEY (`code`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            
+            -- 表3：管理员表
             CREATE TABLE IF NOT EXISTS `admin_users` (`username` varchar(50) NOT NULL, `password` varchar(255) NOT NULL, PRIMARY KEY (`username`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            
+            -- 表4：分类规则表 (新增)
+            CREATE TABLE IF NOT EXISTS `classifications` (`id` int(11) NOT NULL AUTO_INCREMENT, `category_name` varchar(50) NOT NULL, `match_keywords` text DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            
+            -- 表5：防重码库表 (新增)
+            CREATE TABLE IF NOT EXISTS `used_codes` (`code` varchar(50) NOT NULL, PRIMARY KEY (`code`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            
+            -- 清空可能残留的旧管理员数据
             TRUNCATE TABLE `admin_users`;
         ");
         
+        // 3. 注入你在页面填写的后台管理员账号和密码
         $stmt = $pdo->prepare("INSERT INTO admin_users (username, password) VALUES (?, ?)");
         $stmt->execute([$admin_user, $admin_pass]);
+        
+        // 4. 生成防重装锁文件
         file_put_contents(__DIR__ . '/install.lock', date('Y-m-d H:i:s'));
-        $success_msg = "安装成功！管理员账号已生效。";
+        $success_msg = "安装成功！所有数据表均已建立，管理员账号已生效。";
+        
     } catch (Exception $e) {
         $error_msg = "安装失败: " . $e->getMessage();
     }
@@ -64,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <form method="POST">
                         <h6 class="text-muted">1. 数据库配置 (VPS面板提供)</h6>
                         <input type="text" name="db_host" class="form-control mb-2" value="127.0.0.1" placeholder="数据库地址">
-                        <input type="text" name="db_name" class="form-control mb-2" required placeholder="数据库名 (例如: xysms)">
+                        <input type="text" name="db_name" class="form-control mb-2" required placeholder="数据库名 (例如: xyfk)">
                         <input type="text" name="db_user" class="form-control mb-2" required placeholder="数据库用户名">
                         <input type="password" name="db_pass" class="form-control mb-4" required placeholder="数据库密码">
                         
