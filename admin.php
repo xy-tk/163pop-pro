@@ -30,6 +30,7 @@ $allowedActions = [
     'verification_code' => 'views/verification_code.php',
     'code_manager'      => 'views/code_manager.php',
     'expired_phones'    => 'views/expired_phones.php',
+    'change_password'   => 'views/change_password.php',
 ];
 
 $action = $_GET['action'] ?? 'dashboard';
@@ -65,7 +66,23 @@ if (!Auth::checkLogin()) {
 // ==========================================
 // 4. 数据处理逻辑 (CRUD - 增删改动作处理)
 // ==========================================
-
+// --- 【0】管理员账号修改逻辑 ---
+if ($action === 'change_password_save') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['new_username']) && !empty($_POST['new_password'])) {
+        try {
+            // 因为系统设计为单管理员，直接清空旧表并插入新账号
+            $pdo->exec("TRUNCATE TABLE admin_users");
+            $stmt = $pdo->prepare("INSERT INTO admin_users (username, password) VALUES (?, ?)");
+            $stmt->execute([trim($_POST['new_username']), trim($_POST['new_password'])]);
+            
+            $_SESSION['success_message'] = "管理员账号密码修改成功！请牢记新密码。";
+        } catch (PDOException $e) {
+            $_SESSION['error_message'] = "修改失败，数据库写入错误！";
+        }
+    }
+    header('Location: admin.php?action=change_password'); 
+    exit;
+}
 // --- 【1】号码库处理逻辑 ---
 if ($action === 'phonenumber_save') {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['phonenumber'])) {
