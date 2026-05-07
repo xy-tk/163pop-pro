@@ -1,31 +1,46 @@
-<h2>登录</h2>
-<?php if (isset($error_message) && !empty($error_message)): ?>
-    <p style="color: red;"><?php echo $error_message; ?></p>
-<?php endif; ?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统登录 - 接码后台管理</title>
+    <link href="https://cdn.staticfile.org/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.staticfile.org/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .login-card { border: none; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); width: 100%; max-width: 400px; padding: 2rem; background: #fff; }
+        .login-card .brand { font-size: 1.5rem; font-weight: bold; color: #0d6efd; text-align: center; margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
 
-<?php if (isset($_SESSION['login_locked_until']) && time() < $_SESSION['login_locked_until']): ?>
-    <?php
-        $remaining_time = ceil(($_SESSION['login_locked_until'] - time()) / 60);
-        echo "<p style='color: red; font-weight: bold;'>登录尝试次数过多，请在 {$remaining_time} 分钟后再试。</p>";
-    ?>
-<?php else: ?>
-    <form method="post" action="admin.php?action=login">
-        <div style="margin-bottom: 15px;">
-            <label for="username" style="display:inline-block; width: 70px; font-weight:bold;">用户名:</label>
-            <input type="text" id="username" name="username" required autocomplete="username" style="padding: 5px;">
+<div class="login-card">
+    <div class="brand"><i class="fas fa-shield-alt"></i> 接码系统 Pro</div>
+    
+    <?php if (isset($_SESSION['error_message'])): ?>
+        <div class="alert alert-danger py-2">
+            <i class="fas fa-exclamation-circle"></i> <?= $_SESSION['error_message']; unset($_SESSION['error_message']); ?>
         </div>
-        
-        <div style="margin-bottom: 15px;">
-            <label for="password" style="display:inline-block; width: 70px; font-weight:bold;">密码:</label>
-            <input type="password" id="password" name="password" required autocomplete="current-password" style="padding: 5px;">
+    <?php endif; ?>
+
+    <form method="POST" action="admin.php?action=login">
+        <div class="mb-3">
+            <label class="form-label text-muted">管理员账号</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light"><i class="fas fa-user"></i></span>
+                <input type="text" name="username" class="form-control" required placeholder="输入账号">
+            </div>
         </div>
-        
-        <div style="margin-bottom: 15px;">
-            <label for="captcha" style="display:inline-block; width: 70px; font-weight:bold;">验证码:</label>
-            <input type="text" id="captcha" name="captcha" required autocomplete="off" style="width: 80px; padding: 5px;">
-            <img src="captcha.php" alt="CAPTCHA Image" style="vertical-align: middle; margin-left: 10px; border: 1px solid #ccc; cursor: pointer; height: 30px;" onclick="this.src='captcha.php?'+Math.random();" title="点击刷新验证码">
+        <div class="mb-4">
+            <label class="form-label text-muted">管理员密码</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light"><i class="fas fa-lock"></i></span>
+                <input type="password" name="password" class="form-control" required placeholder="输入密码">
+            </div>
         </div>
-        
-        <button type="submit" style="padding: 6px 20px; cursor: pointer; background-color: #409EFF; color: white; border: none; border-radius: 4px;">登录</button>
+        <button type="submit" class="btn btn-primary w-100 fw-bold py-2">登 录</button>
     </form>
-<?php endif; ?>
+</div>
+
+</body>
+</html>
