@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <form method="POST">
                         <h6 class="text-muted">1. 数据库配置 (VPS面板提供)</h6>
                         <input type="text" name="db_host" class="form-control mb-2" value="127.0.0.1" placeholder="数据库地址">
-                        <input type="text" name="db_name" class="form-control mb-2" required placeholder="数据库名 (例如: xyfk)">
+                        <input type="text" name="db_name" class="form-control mb-2" required placeholder="数据库名 (例如: xysms)">
                         <input type="text" name="db_user" class="form-control mb-2" required placeholder="数据库用户名">
                         <input type="password" name="db_pass" class="form-control mb-4" required placeholder="数据库密码">
                         
