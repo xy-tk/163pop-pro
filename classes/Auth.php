@@ -12,10 +12,11 @@ class Auth {
             return false;
         }
 
-        $stmt = $pdo->prepare("SELECT * FROM admin_users WHERE username = ? AND password = ?");
-        $stmt->execute([$username, $password]);
+        $stmt = $pdo->prepare("SELECT * FROM admin_users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
         
-        if ($stmt->fetch()) {
+        if ($user && password_verify($password, $user['password'])) {
             unset($_SESSION['login_attempts']);
             unset($_SESSION['login_locked_until']);
             $_SESSION['logged_in'] = true;
