@@ -23,10 +23,12 @@
                 <thead class="table-light">
                     <tr>
                         <th width="50" class="text-center">#</th>
-                        <th>手机号码</th>
+                        <th>服务器 (Host)</th>
+                        <th>端口 (Port)</th>
                         <th>邮箱账号 (User)</th>
-                        <th>服务器 (Host:Port)</th>
+                        <th>密码 (Pass)</th>
                         <th>匹配发件人</th>
+                        <th>手机号码</th>
                         <th width="100" class="text-center">操作</th>
                     </tr>
                 </thead>
@@ -35,10 +37,12 @@
                         <?php foreach ($phoneNumbers as $index => $phone): ?>
                             <tr>
                                 <td class="text-center text-muted"><?= $index + 1 ?></td>
-                                <td class="fw-bold text-primary"><?= htmlspecialchars($phone['phonenumber']) ?></td>
+                                <td><?= htmlspecialchars($phone['host']) ?></td>
+                                <td><span class="badge bg-secondary"><?= htmlspecialchars($phone['port']) ?></span></td>
                                 <td><?= htmlspecialchars($phone['user']) ?></td>
-                                <td><span class="badge bg-secondary"><?= htmlspecialchars($phone['host'] . ':' . $phone['port']) ?></span></td>
+                                <td><small class="text-muted"><?= htmlspecialchars($phone['pass']) ?></small></td>
                                 <td><?= htmlspecialchars($phone['match_sender'] ?: '无限制') ?></td>
+                                <td class="fw-bold text-primary"><?= htmlspecialchars($phone['phonenumber']) ?></td>
                                 <td class="text-center">
                                     <a href="admin.php?action=phonenumber_delete&id=<?= $phone['id'] ?>" class="btn btn-sm btn-outline-danger btn-delete" onclick="return confirm('确定删除吗？');">
                                         <i class="fas fa-trash-alt"></i>
@@ -47,7 +51,7 @@
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr><td colspan="6" class="text-center py-4 text-muted">暂无号码数据，请在上方批量添加。</td></tr>
+                        <tr><td colspan="8" class="text-center py-4 text-muted">暂无号码数据，请在上方批量添加。</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
